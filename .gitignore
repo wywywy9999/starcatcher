@@ -4,3 +4,8 @@ backend/data/
 node_modules/
 __pycache__/
 .tmp/
+natapp.exe
+natapp_windows_amd64_3_0_3.zip
+ngrok.exe
+ngrok.zip
+ngrok-v3-stable-windows-amd64/
