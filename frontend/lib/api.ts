@@ -55,8 +55,8 @@ export const api = {
 
   // Stats & Export
   getStats: () => fetchAPI<Stats>("/stats"),
-  exportBookmarks: (format: "md" | "csv", collection_id?: number) => {
-    const params = new URLSearchParams({ format });
+  exportBookmarks: (collection_id?: number) => {
+    const params = new URLSearchParams();
     if (collection_id) params.set("collection_id", String(collection_id));
     return fetchAPI<{ format: string; data: string }>(`/export?${params}`);
   },

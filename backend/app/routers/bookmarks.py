@@ -330,33 +330,15 @@ def reorder_bookmarks(items: list[dict], db: Session = Depends(get_db)):
 
 
 @router.post("/batch/export")
-def batch_export(ids: list[int], format: str = "md", db: Session = Depends(get_db)):
-    import csv as csv_mod
-    import io
+def batch_export(ids: list[int], db: Session = Depends(get_db)):
     from datetime import datetime
-
     bookmarks = db.query(Bookmark).filter(Bookmark.id.in_(ids)).order_by(Bookmark.created_at.desc()).all()
-
-    if format == "csv":
-        output = io.StringIO()
-        writer = csv_mod.writer(output)
-        writer.writerow(["标题", "URL", "摘要", "分类", "标签", "笔记", "日期"])
-        for b in bookmarks:
-            writer.writerow([
-                b.title or "", b.url, b.summary or "",
-                ", ".join(c.name for c in b.categories),
-                ", ".join(t.name for t in b.tags),
-                b.note or "", b.created_at.isoformat() if b.created_at else "",
-            ])
-        return {"format": "csv", "data": output.getvalue()}
-
-    lines = ["# LinkVault 批量导出", f"导出时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}", f"共 {len(bookmarks)} 篇", ""]
+    lines = [f"# StarCatcher 批量导出", f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}", f"共 {len(bookmarks)} 篇", ""]
     for b in bookmarks:
         lines.append(f"## [{b.title or b.url}]({b.url})")
-        if b.summary:
-            lines.append(f"> {b.summary}")
-        lines.append(f"- 分类: {', '.join(c.name for c in b.categories) or '无'}  | 标签: {', '.join(t.name for t in b.tags) or '无'}")
-        if b.note:
-            lines.append(f"- 笔记: {b.note}")
+        lines.append(f"**分类**: {', '.join(c.name for c in b.categories) or '无'} | **标签**: {', '.join(t.name for t in b.tags) or '无'}")
+        if b.summary: lines.append(f"> {b.summary}")
+        if b.note: lines.append(f"笔记: {b.note}")
+        if b.full_summary: lines.append(f"正文: {b.full_summary[:200]}")
         lines.append("")
-    return {"format": "md", "data": "\n".join(lines)}
+    return {"data": "\n".join(lines)}

@@ -1,5 +1,3 @@
-import csv
-import io
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
@@ -44,35 +42,23 @@ def get_stats(db: Session = Depends(get_db)):
 
 
 @router.get("/export")
-def export_bookmarks(format: str = "md", collection_id: int | None = None,
-                     db: Session = Depends(get_db)):
-    query = db.query(Bookmark).filter(Bookmark.status == "ready")
+def export_bookmarks(collection_id: int | None = None, db: Session = Depends(get_db)):
+    query = db.query(Bookmark)
     if collection_id:
         query = query.filter(Bookmark.collection_id == collection_id)
     bookmarks = query.order_by(Bookmark.created_at.desc()).all()
 
-    if format == "csv":
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(["标题", "URL", "摘要", "分类", "标签", "笔记", "日期"])
-        for b in bookmarks:
-            writer.writerow([
-                b.title or "", b.url, b.summary or "",
-                b.category.name if b.category else "",
-                ", ".join(t.name for t in b.tags),
-                b.note or "", b.created_at.isoformat() if b.created_at else "",
-            ])
-        return {"format": "csv", "data": output.getvalue()}
-
-    # Markdown
-    lines = ["# LinkVault 书签导出", f"导出时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ""]
+    lines = ["# StarCatcher 导出", f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}", f"共 {len(bookmarks)} 篇", ""]
     for b in bookmarks:
+        cat_names = ", ".join(c.name for c in b.categories)
+        tag_names = ", ".join(t.name for t in b.tags)
         lines.append(f"## [{b.title or b.url}]({b.url})")
+        lines.append(f"**分类**: {cat_names or '无'} | **标签**: {tag_names or '无'}")
         if b.summary:
             lines.append(f"> {b.summary}")
-        lines.append(f"- 分类: {b.category.name if b.category else '无'}  "
-                     f"| 标签: {', '.join(t.name for t in b.tags) or '无'}")
         if b.note:
-            lines.append(f"- 笔记: {b.note}")
+            lines.append(f"笔记: {b.note}")
+        if b.full_summary:
+            lines.append(f"正文: {b.full_summary[:200]}")
         lines.append("")
     return {"format": "md", "data": "\n".join(lines)}
