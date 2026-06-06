@@ -212,7 +212,7 @@ export default function BookmarkDetailPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-6">
-      <button onClick={() => router.back()} className="text-sm text-gray-400 hover:text-gray-600 mb-4">← 返回</button>
+
 
       <h1 className="text-xl font-bold text-gray-900 mb-2">{bookmark.title || bookmark.url}</h1>
       <div className="flex items-center gap-3 text-xs text-gray-400 mb-4">

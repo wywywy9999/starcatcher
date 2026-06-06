@@ -161,7 +161,7 @@ export default function BookmarkDrawer({ bookmarkId, onClose }: Props) {
     <>
       <div className="fixed inset-0 bg-black/20 z-40" onClick={() => { setShowMenu(false); onClose(); }} />
 
-      <div className="fixed right-0 top-0 h-full w-[480px] max-w-[90vw] bg-white shadow-2xl z-50 overflow-y-auto"
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] max-w-[90vw] max-h-[90vh] bg-white shadow-2xl z-50 rounded-2xl overflow-hidden flex flex-col"
            onClick={() => setShowMenu(false)}>
 
         {/* 顶部按钮组 */}
@@ -196,7 +196,7 @@ export default function BookmarkDrawer({ bookmarkId, onClose }: Props) {
         )}
 
         {bookmark && (
-          <div className="p-6">
+          <div className="p-6 overflow-y-auto flex-1">
             {/* 标题 */}
             {editMode ? (
               <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
