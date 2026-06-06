@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { BookmarkFilters } from "@/lib/types";
@@ -19,6 +19,13 @@ export default function Dashboard() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [batchMode, setBatchMode] = useState(false);
   const qc = useQueryClient();
+
+  // URL 带 bid 参数时自动打开抽屉
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const bid = params.get("bid");
+    if (bid) setSelectedId(Number(bid));
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ["bookmarks", filters],

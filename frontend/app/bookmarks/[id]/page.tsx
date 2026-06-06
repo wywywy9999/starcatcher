@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import ReactMarkdown from "react-markdown";
 import { api } from "@/lib/api";
 import type { BookmarkDetail, Bookmark } from "@/lib/types";
 
@@ -29,9 +30,19 @@ export default function BookmarkDetailPage() {
     enabled: !!bookmark,
   });
 
+  const { data: categories } = useQuery({ queryKey: ["categories"], queryFn: api.listCategories });
+  const { data: allTags } = useQuery({ queryKey: ["tags"], queryFn: () => api.listTags() });
+
   const [note, setNote] = useState("");
   const [noteEdit, setNoteEdit] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSummary, setEditSummary] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [editCatIds, setEditCatIds] = useState<number[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
   // 标注模式
   const [annotating, setAnnotating] = useState(false);
@@ -63,6 +74,23 @@ export default function BookmarkDetailPage() {
   const handleRetry = async () => {
     await api.retryBookmark(bookmarkId);
     qc.invalidateQueries({ queryKey: ["bookmark", bookmarkId] });
+  };
+
+  const enterEdit = () => {
+    if (!bookmark) return;
+    setEditTitle(bookmark.title || "");
+    setEditSummary(bookmark.summary || "");
+    setEditContent((bookmark as BookmarkDetail).full_summary || "");
+    setEditTags(bookmark.tags.map((t) => t.name));
+    setEditCatIds(bookmark.categories.map((c) => c.id));
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    if (!bookmark) return;
+    await api.updateBookmark(bookmark.id, { title: editTitle, summary: editSummary, full_summary: editContent, tags: editTags, category_ids: editCatIds });
+    qc.invalidateQueries({ queryKey: ["bookmark", bookmarkId] });
+    setEditing(false);
   };
 
   // ── 标注逻辑 ──
@@ -214,7 +242,30 @@ export default function BookmarkDetailPage() {
     <div className="max-w-3xl mx-auto p-6">
 
 
-      <h1 className="text-xl font-bold text-gray-900 mb-2">{bookmark.title || bookmark.url}</h1>
+      {editing ? (
+        <div className="space-y-4 mb-6">
+          <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full text-xl font-bold px-2 py-1 border rounded" placeholder="标题" />
+          <textarea value={editSummary} onChange={(e) => setEditSummary(e.target.value)} rows={2} className="w-full px-2 py-1 border rounded text-sm" placeholder="摘要" />
+          <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={8} className="w-full px-2 py-1 border rounded text-sm" placeholder="正文（支持 Markdown）" />
+          <div><span className="text-xs text-gray-500 mr-2">分类</span>
+            {categories?.map((c) => (
+              <button key={c.id} onClick={() => setEditCatIds((p) => p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id])}
+                className={`px-2 py-0.5 rounded text-xs border mr-1 mb-1 ${editCatIds.includes(c.id) ? "bg-blue-50 border-blue-300 text-blue-700" : "border-gray-200 text-gray-500"}`}>{c.icon} {c.name}</button>
+            ))}
+          </div>
+          <div>
+            <div className="flex flex-wrap gap-1 mb-1">{editTags.map((n) => <span key={n} className="px-2 py-0.5 bg-gray-100 rounded text-xs">{n} <button onClick={() => setEditTags((p) => p.filter((x) => x !== n))} className="text-gray-400 hover:text-red-500">×</button></span>)}</div>
+            <input value={tagInput} onChange={(e) => { setTagInput(e.target.value); }} onKeyDown={(e) => { if (e.key === "Enter" && tagInput.trim()) { setEditTags((p) => p.includes(tagInput.trim()) ? p : [...p, tagInput.trim()]); setTagInput(""); } }}
+              placeholder="输入标签，回车添加" className="w-full px-2 py-1 border rounded text-sm" />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={saveEdit} className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600">保存修改</button>
+            <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg">取消</button>
+          </div>
+        </div>
+      ) : (
+        <h1 className="text-xl font-bold text-gray-900 mb-2">{bookmark.title || bookmark.url}</h1>
+      )}
       <div className="flex items-center gap-3 text-xs text-gray-400 mb-4">
         <span>{bookmark.domain || "笔记"}</span>
         <span>{new Date(bookmark.created_at).toLocaleDateString("zh-CN")}</span>
@@ -223,8 +274,8 @@ export default function BookmarkDetailPage() {
       {/* Actions */}
       <div className="flex gap-2 mb-6">
         {bookmark.url && <a href={bookmark.url} target="_blank" className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600">打开原文</a>}
-        {!bookmark.url && (
-          <a href={`/bookmarks/${bookmarkId}`} target="_blank" className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600">在新页面打开</a>
+        {!bookmark.url && !editing && (
+          <button onClick={enterEdit} className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600">编辑</button>
         )}
         {bookmark.status === "failed" && (
           <button onClick={handleRetry} className="px-3 py-1.5 bg-yellow-500 text-white text-xs rounded-lg hover:bg-yellow-600">重试</button>
@@ -312,7 +363,20 @@ export default function BookmarkDetailPage() {
           {content && !bookmark.use_ai && (
             <div className="bg-gray-50 rounded-lg p-4 mb-5">
               <h3 className="text-sm font-semibold text-gray-600 mb-2">正文</h3>
-              {renderAnnotatedContent(content, parsedAnns, false)}
+              <div className="text-sm text-gray-700 leading-relaxed markdown-body">
+                <ReactMarkdown>{content}</ReactMarkdown>
+              </div>
+              {parsedAnns.length > 0 && (
+                <div className="mt-4 space-y-2 border-t pt-3">
+                  <h4 className="text-xs font-semibold text-gray-500">批注</h4>
+                  {parsedAnns.map((a, i) => (
+                    <div key={i} className="text-xs bg-blue-50 rounded px-2 py-1.5">
+                      <span className="text-gray-400">「{a.quote.length > 15 ? a.quote.slice(0, 15) + "..." : a.quote}」</span>
+                      {a.comment && <span className="text-blue-700 ml-2">{a.comment}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </>
